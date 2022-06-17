@@ -17,9 +17,9 @@ class Credentials {
 
   factory Credentials.fromMap(Map<String, dynamic> json) {
     return Credentials(
-      accessKeyId: json['access_key_id'] as String,
-      accessKeySecret: json['access_key_secret'] as String,
-      securityToken: json['security_token'] as String,
+      accessKeyId: json['accessKeyId'] as String,
+      accessKeySecret: json['accessKeySecret'] as String,
+      securityToken: json['securityToken'] as String,
       expiration: json['expiration'] != null
           ? DateTime.parse(json['expiration'] as String)
           : null,
@@ -39,23 +39,43 @@ class Credentials {
   }
 }
 
-abstract class OSSObject {
-  OSSObject._({
-    required this.bytes,
+class OSSObject {
+  OSSObject({
+    required this.stream,
+    this.length,
     MediaType? mediaType,
     this.uuid,
   }) : _mediaType = mediaType ?? MediaType('application', 'octet-stream');
 
-  final Uint8List bytes;
+  OSSObject.fromBytes({
+    required Uint8List bytes,
+    required MediaType mediaType,
+    this.uuid,
+  })  : stream = Stream.fromIterable(bytes.map((e) => [e])),
+        length = Future.value(bytes.length),
+        _mediaType = mediaType;
+
+  OSSObject.fromFile({
+    required File file,
+    required MediaType mediaType,
+    this.uuid,
+  })  : stream = file.openRead(),
+        length = file.length(),
+        _mediaType = mediaType;
+
+  final Stream<List<int>> stream;
 
   final MediaType _mediaType;
+
   MediaType get mediaType => _mediaType;
 
   final String? uuid;
 
-  String url = '';
+  String objectPath = '';
+  String bucket = '';
+  String endPoint = '';
 
-  int get length => bytes.lengthInBytes;
+  Future<int>? length;
 
   String get type => _mediaType == MediaType('application', 'octet-stream')
       ? 'file'
@@ -71,135 +91,72 @@ abstract class OSSObject {
 
   String resourcePath(String? path) => '${path ?? folderPath}/$name';
 
-  void uploadSuccessful(String url) {
-    this.url = url;
+  void uploadSuccessful(String endPoint, String bucket, String objectPath) {
+    this.endPoint = endPoint;
+    this.bucket = bucket;
+    this.objectPath = objectPath;
   }
 }
 
-/// * [quality] 压缩存在问题，如果当图片没有exif将无法压缩
 class OSSImageObject extends OSSObject {
-  OSSImageObject._({
+  OSSImageObject.fromBytes({
     required Uint8List bytes,
     required MediaType mediaType,
     String? uuid,
-  }) : super._(bytes: bytes, mediaType: mediaType, uuid: uuid);
+  }) : super.fromBytes(bytes: bytes, mediaType: mediaType, uuid: uuid);
 
-  factory OSSImageObject.fromBytes({
-    required Uint8List bytes,
+  OSSImageObject._({
+    required File file,
     required MediaType mediaType,
     String? uuid,
-  }) {
-    return OSSImageObject._(
-      bytes: bytes,
-      mediaType: mediaType,
-      uuid: uuid,
-    );
-  }
+  }) : super.fromFile(file: file, mediaType: mediaType, uuid: uuid);
 
   factory OSSImageObject.fromFile({
     required File file,
+    MediaType? mediaType,
     String? uuid,
   }) {
     String subtype = path.extension(file.path).toLowerCase();
     subtype = subtype.isNotEmpty ? subtype.replaceFirst('.', '') : '*';
-    return OSSImageObject._(
-      bytes: file.readAsBytesSync(),
-      mediaType: MediaType('image', subtype),
-      uuid: uuid,
-    );
+    final type = mediaType ?? MediaType('image', subtype);
+    return OSSImageObject._(file: file, mediaType: type, uuid: uuid);
   }
-
-  // decodeImage UI
-  // late int _width;
-  // late int _height;
-  // int get width => _width;
-  // int get height => _height;
-
-  // void _decodeExif() {
-  //   img.Image image;
-  //   if (mediaType.subtype == 'jpg' || mediaType.subtype == 'jpeg') {
-  //     image = img.decodeJpg(bytes);
-  //   } else if (mediaType.subtype == 'png') {
-  //     image = img.decodePng(bytes)!;
-  //   } else if (mediaType.subtype == 'gif') {
-  //     image = img.decodeGif(bytes)!;
-  //   } else {
-  //     image = img.decodeImage(bytes)!;
-  //   }
-  //   _width = image.width;
-  //   _height = image.height;
-  //   if (image.exif.hasOrientation) {
-  //     print(image.exif.orientation);
-  //   }
-  // }
 }
 
-/// * [length] 秒为单位
 class OSSAudioObject extends OSSObject {
   OSSAudioObject._({
-    required Uint8List bytes,
+    required File file,
     required MediaType mediaType,
     String? uuid,
-  }) : super._(bytes: bytes, mediaType: mediaType, uuid: uuid);
-
-  factory OSSAudioObject.fromBytes({
-    required Uint8List bytes,
-    required MediaType mediaType,
-    String? uuid,
-  }) {
-    return OSSAudioObject._(
-      bytes: bytes,
-      mediaType: mediaType,
-      uuid: uuid,
-    );
-  }
+  }) : super.fromFile(file: file, mediaType: mediaType, uuid: uuid);
 
   factory OSSAudioObject.fromFile({
     required File file,
+    MediaType? mediaType,
     String? uuid,
   }) {
     String subtype = path.extension(file.path).toLowerCase();
     subtype = subtype.isNotEmpty ? subtype.replaceFirst('.', '') : '*';
-
-    return OSSAudioObject._(
-      bytes: file.readAsBytesSync(),
-      mediaType: MediaType('audio', subtype),
-      uuid: uuid,
-    );
+    final type = mediaType ?? MediaType('audio', subtype);
+    return OSSAudioObject._(file: file, mediaType: type, uuid: uuid);
   }
 }
 
-/// * [length] 秒为单位
 class OSSVideoObject extends OSSObject {
   OSSVideoObject._({
-    required Uint8List bytes,
+    required File file,
     required MediaType mediaType,
     String? uuid,
-  }) : super._(bytes: bytes, mediaType: mediaType, uuid: uuid);
-
-  factory OSSVideoObject.fromBytes({
-    required Uint8List bytes,
-    required MediaType mediaType,
-    String? uuid,
-  }) {
-    return OSSVideoObject._(
-      bytes: bytes,
-      mediaType: mediaType,
-      uuid: uuid,
-    );
-  }
+  }) : super.fromFile(file: file, mediaType: mediaType, uuid: uuid);
 
   factory OSSVideoObject.fromFile({
     required File file,
+    MediaType? mediaType,
     String? uuid,
   }) {
     String subtype = path.extension(file.path).toLowerCase();
     subtype = subtype.isNotEmpty ? subtype.replaceFirst('.', '') : '*';
-
-    return OSSVideoObject._(
-      bytes: file.readAsBytesSync(),
-      mediaType: MediaType('video', subtype),
-      uuid: uuid,
-    );
+    final type = mediaType ?? MediaType('audio', subtype);
+    return OSSVideoObject._(file: file, mediaType: type, uuid: uuid);
   }
 }

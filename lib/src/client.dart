@@ -43,11 +43,10 @@ class OSSClient {
     required OSSObject object,
     String? bucket,
     String? endpoint,
-    String? path,
+    String? directory,
   }) async {
     _signer = await verify();
-
-    final String objectPath = object.resourcePath(path);
+    final String objectPath = object.resourcePath(directory);
 
     final Map<String, dynamic> safeHeaders = _signer!.sign(
       httpMethod: 'PUT',
@@ -59,18 +58,16 @@ class OSSClient {
     try {
       final String url =
           'https://${bucket ?? this.bucket}.${endpoint ?? this.endpoint}/$objectPath';
-      final Uint8List bytes = object.bytes;
-      // if (object is OSSImageObject && !object.fullImage) {
-      //   bytes = MediaAssetUtils.compressImage(file);
-      // }
+      final length = await object.length;
+      print('OssUploader -> $length url:$url object: $object');
       await _http.put<void>(
         url,
-        data: Stream.fromIterable(bytes.map((e) => [e])),
+        data: object.stream,
         options: Options(
           headers: <String, dynamic>{
             ...safeHeaders,
             ...<String, dynamic>{
-              'content-length': object.length,
+              'content-length': length,
             }
           },
           contentType: object._mediaType.mimeType,
@@ -79,7 +76,12 @@ class OSSClient {
         //   print(((count/total)*100).toStringAsFixed(2));
         // }
       );
-      return object..uploadSuccessful(url);
+      return object
+        ..uploadSuccessful(
+          bucket ?? this.bucket,
+          endpoint ?? this.endpoint,
+          objectPath,
+        );
     } catch (e) {
       rethrow;
     }
