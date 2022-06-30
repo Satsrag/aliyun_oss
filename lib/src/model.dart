@@ -39,124 +39,117 @@ class Credentials {
   }
 }
 
+extension StringEx on String {
+  MediaType? get toMediaType {
+    try {
+      return MediaType.parse(this);
+    } catch (e) {
+      return null;
+    }
+  }
+}
+
 class OSSObject {
   OSSObject({
     required this.stream,
     this.length,
     MediaType? mediaType,
-    this.uuid,
-  }) : _mediaType = mediaType ?? MediaType('application', 'octet-stream');
+    String? objectPath,
+  })  : mediaType = mediaType ??
+            mime(objectPath)?.toMediaType ??
+            MediaType('application', 'octet-stream'),
+        objectPath = objectPath ??
+            "${DateFormat('y/MM/dd').format(DateTime.now())}/${Uuid().v1()}.${extensionFromMime(mediaType.toString())}";
 
   OSSObject.fromBytes({
     required Uint8List bytes,
-    required MediaType mediaType,
-    this.uuid,
-  })  : stream = Stream.fromIterable(bytes.map((e) => [e])),
-        length = Future.value(bytes.length),
-        _mediaType = mediaType;
+    MediaType? mediaType,
+    String? objectPath,
+  }) : this(
+            stream: Stream.fromIterable(bytes.map((e) => [e])),
+            length: Future.value(bytes.length),
+            mediaType: mediaType,
+            objectPath: objectPath);
 
   OSSObject.fromFile({
     required File file,
-    required MediaType mediaType,
-    this.uuid,
-  })  : stream = file.openRead(),
-        length = file.length(),
-        _mediaType = mediaType;
+    MediaType? mediaType,
+    String? objectPath,
+  }) : this(
+            stream: file.openRead(),
+            length: file.length(),
+            mediaType: mediaType,
+            objectPath: objectPath);
 
-  final Stream<List<int>> stream;
-
-  final MediaType _mediaType;
-
-  MediaType get mediaType => _mediaType;
-
-  final String? uuid;
-
-  String objectPath = '';
-  String bucket = '';
-  String endPoint = '';
+  // stream = file.openRead(),
+  // length = file.length(),
+  // _mediaType = mediaType;
 
   Future<int>? length;
-
-  String get type => _mediaType == MediaType('application', 'octet-stream')
-      ? 'file'
-      : _mediaType.type;
-
-  String get name =>
-      (uuid ?? Uuid().v1()) + (type == 'file' ? '' : '.${_mediaType.subtype}');
-
-  String get folderPath => [
-        type,
-        DateFormat('y/MM/dd').format(DateTime.now()),
-      ].join('/');
-
-  String resourcePath(String? path) => '${path ?? folderPath}/$name';
-
-  void uploadSuccessful(String endPoint, String bucket, String objectPath) {
-    this.endPoint = endPoint;
-    this.bucket = bucket;
-    this.objectPath = objectPath;
-  }
+  final Stream<List<int>> stream;
+  final MediaType mediaType;
+  final String objectPath;
 }
 
-class OSSImageObject extends OSSObject {
-  OSSImageObject.fromBytes({
-    required Uint8List bytes,
-    required MediaType mediaType,
-    String? uuid,
-  }) : super.fromBytes(bytes: bytes, mediaType: mediaType, uuid: uuid);
-
-  OSSImageObject._({
-    required File file,
-    required MediaType mediaType,
-    String? uuid,
-  }) : super.fromFile(file: file, mediaType: mediaType, uuid: uuid);
-
-  factory OSSImageObject.fromFile({
-    required File file,
-    MediaType? mediaType,
-    String? uuid,
-  }) {
-    String subtype = path.extension(file.path).toLowerCase();
-    subtype = subtype.isNotEmpty ? subtype.replaceFirst('.', '') : '*';
-    final type = mediaType ?? MediaType('image', subtype);
-    return OSSImageObject._(file: file, mediaType: type, uuid: uuid);
-  }
-}
-
-class OSSAudioObject extends OSSObject {
-  OSSAudioObject._({
-    required File file,
-    required MediaType mediaType,
-    String? uuid,
-  }) : super.fromFile(file: file, mediaType: mediaType, uuid: uuid);
-
-  factory OSSAudioObject.fromFile({
-    required File file,
-    MediaType? mediaType,
-    String? uuid,
-  }) {
-    String subtype = path.extension(file.path).toLowerCase();
-    subtype = subtype.isNotEmpty ? subtype.replaceFirst('.', '') : '*';
-    final type = mediaType ?? MediaType('audio', subtype);
-    return OSSAudioObject._(file: file, mediaType: type, uuid: uuid);
-  }
-}
-
-class OSSVideoObject extends OSSObject {
-  OSSVideoObject._({
-    required File file,
-    required MediaType mediaType,
-    String? uuid,
-  }) : super.fromFile(file: file, mediaType: mediaType, uuid: uuid);
-
-  factory OSSVideoObject.fromFile({
-    required File file,
-    MediaType? mediaType,
-    String? uuid,
-  }) {
-    String subtype = path.extension(file.path).toLowerCase();
-    subtype = subtype.isNotEmpty ? subtype.replaceFirst('.', '') : '*';
-    final type = mediaType ?? MediaType('audio', subtype);
-    return OSSVideoObject._(file: file, mediaType: type, uuid: uuid);
-  }
-}
+// class OSSImageObject extends OSSObject {
+//   OSSImageObject.fromBytes({
+//     required Uint8List bytes,
+//     required MediaType mediaType,
+//     String? uuid,
+//   }) : super.fromBytes(bytes: bytes, mediaType: mediaType, uuid: uuid);
+//
+//   OSSImageObject._({
+//     required File file,
+//     required MediaType mediaType,
+//     String? uuid,
+//   }) : super.fromFile(file: file, mediaType: mediaType, uuid: uuid);
+//
+//   factory OSSImageObject.fromFile({
+//     required File file,
+//     MediaType? mediaType,
+//     String? uuid,
+//   }) {
+//     String subtype = path.extension(file.path).toLowerCase();
+//     subtype = subtype.isNotEmpty ? subtype.replaceFirst('.', '') : '*';
+//     final type = mediaType ?? MediaType('image', subtype);
+//     return OSSImageObject._(file: file, mediaType: type, uuid: uuid);
+//   }
+// }
+//
+// class OSSAudioObject extends OSSObject {
+//   OSSAudioObject._({
+//     required File file,
+//     required MediaType mediaType,
+//     String? uuid,
+//   }) : super.fromFile(file: file, mediaType: mediaType, uuid: uuid);
+//
+//   factory OSSAudioObject.fromFile({
+//     required File file,
+//     MediaType? mediaType,
+//     String? uuid,
+//   }) {
+//     String subtype = path.extension(file.path).toLowerCase();
+//     subtype = subtype.isNotEmpty ? subtype.replaceFirst('.', '') : '*';
+//     final type = mediaType ?? MediaType('audio', subtype);
+//     return OSSAudioObject._(file: file, mediaType: type, uuid: uuid);
+//   }
+// }
+//
+// class OSSVideoObject extends OSSObject {
+//   OSSVideoObject._({
+//     required File file,
+//     required MediaType mediaType,
+//     String? uuid,
+//   }) : super.fromFile(file: file, mediaType: mediaType, uuid: uuid);
+//
+//   factory OSSVideoObject.fromFile({
+//     required File file,
+//     MediaType? mediaType,
+//     String? uuid,
+//   }) {
+//     String subtype = path.extension(file.path).toLowerCase();
+//     subtype = subtype.isNotEmpty ? subtype.replaceFirst('.', '') : '*';
+//     final type = mediaType ?? MediaType('audio', subtype);
+//     return OSSVideoObject._(file: file, mediaType: type, uuid: uuid);
+//   }
+// }

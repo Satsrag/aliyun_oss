@@ -23,6 +23,8 @@ dependencies:
 
   uuid: ^3.0.4
 
+  mime_type: ^1.0.0
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 

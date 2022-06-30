@@ -12,6 +12,7 @@ import 'package:path/path.dart' as path;
 import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart' show MediaType;
 import 'package:uuid/uuid.dart';
+import 'package:mime_type/mime_type.dart';
 
 export 'package:http_parser/http_parser.dart' show MediaType;
 

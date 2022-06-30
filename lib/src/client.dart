@@ -41,23 +41,17 @@ class OSSClient {
   /// * [path] 上传路径 如不写则自动以 Object[type] [time] 生成path
   Future<OSSObject> putObject({
     required OSSObject object,
-    String? bucket,
-    String? endpoint,
-    String? directory,
   }) async {
     _signer = await verify();
-    final String objectPath = object.resourcePath(directory);
-
     final Map<String, dynamic> safeHeaders = _signer!.sign(
       httpMethod: 'PUT',
-      resourcePath: '/${bucket ?? this.bucket}/$objectPath',
+      resourcePath: '/$bucket/${object.objectPath}',
       headers: {
         'content-type': object.mediaType.mimeType,
       },
     ).toHeaders();
     try {
-      final String url =
-          'https://${bucket ?? this.bucket}.${endpoint ?? this.endpoint}/$objectPath';
+      final String url = 'https://$bucket.$endpoint/${object.objectPath}';
       final length = await object.length;
       print('OssUploader -> $length url:$url object: $object');
       await _http.put<void>(
@@ -70,18 +64,13 @@ class OSSClient {
               'content-length': length,
             }
           },
-          contentType: object._mediaType.mimeType,
+          contentType: object.mediaType.mimeType,
         ),
-        // onSendProgress: (int count, int total) {
-        //   print(((count/total)*100).toStringAsFixed(2));
-        // }
+        onSendProgress: (int count, int total) {
+          print(((count/total)*100).toStringAsFixed(2));
+        }
       );
-      return object
-        ..uploadSuccessful(
-          bucket ?? this.bucket,
-          endpoint ?? this.endpoint,
-          objectPath,
-        );
+      return object;
     } catch (e) {
       rethrow;
     }
