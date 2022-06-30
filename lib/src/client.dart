@@ -33,8 +33,9 @@ class OSSClient {
 
   Signer? _signer;
 
-  final String endpoint;
-  final String bucket;
+  String endpoint;
+  String bucket;
+  String? prefixDir;
   final Future<Credentials> Function() credentials;
 
   /// * [bucket] [endpoint] 一次性生效
@@ -45,35 +46,45 @@ class OSSClient {
     _signer = await verify();
     final Map<String, dynamic> safeHeaders = _signer!.sign(
       httpMethod: 'PUT',
-      resourcePath: '/$bucket/${object.objectPath}',
+      resourcePath: '/$bucket/${getObjectPath(object.objectPath)}',
       headers: {
         'content-type': object.mediaType.mimeType,
       },
     ).toHeaders();
     try {
-      final String url = 'https://$bucket.$endpoint/${object.objectPath}';
+      final String url =
+          getObjectUrlWithScheme(getObjectPath(object.objectPath));
       final length = await object.length;
       print('OssUploader -> $length url:$url object: $object');
-      await _http.put<void>(
-        url,
-        data: object.stream,
-        options: Options(
-          headers: <String, dynamic>{
-            ...safeHeaders,
-            ...<String, dynamic>{
-              'content-length': length,
-            }
-          },
-          contentType: object.mediaType.mimeType,
-        ),
-        onSendProgress: (int count, int total) {
-          print(((count/total)*100).toStringAsFixed(2));
-        }
-      );
+      await _http.put<void>(url,
+          data: object.stream,
+          options: Options(
+            headers: <String, dynamic>{
+              ...safeHeaders,
+              ...<String, dynamic>{
+                'content-length': length,
+              }
+            },
+            contentType: object.mediaType.mimeType,
+          ), onSendProgress: (int count, int total) {
+        print(((count / total) * 100).toStringAsFixed(2));
+      });
       return object;
     } catch (e) {
       rethrow;
     }
+  }
+
+  String getObjectUrlWithScheme(String objectPath) {
+    return 'https://$bucket.$endpoint/$objectPath';
+  }
+
+  String getObjectPath(String path) {
+    final prefixDir = this.prefixDir;
+    if (prefixDir != null && prefixDir.isNotEmpty) {
+      return '$prefixDir/$path';
+    }
+    return path;
   }
 
   /// 验证检查
