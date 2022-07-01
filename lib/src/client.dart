@@ -44,31 +44,35 @@ class OSSClient {
     required OSSObject object,
   }) async {
     _signer = await verify();
-    final Map<String, dynamic> safeHeaders = _signer!.sign(
-      httpMethod: 'PUT',
-      resourcePath: '/$bucket/${getObjectPath(object.objectPath)}',
-      headers: {
-        'content-type': object.mediaType.mimeType,
-      },
-    ).toHeaders();
+    final params = _signer!.sign(
+        httpMethod: 'PUT',
+        resourcePath: '/$bucket/${object.objectPath}',
+        headers: {
+          'content-type': object.mediaType.mimeType,
+        }).toParams();
     try {
       final String url =
-          getObjectUrlWithScheme(getObjectPath(object.objectPath));
+          'https://$bucket.$endpoint/${object.objectPath}$params';
       final length = await object.length;
+
       print('OssUploader -> $length url:$url object: $object');
-      await _http.put<void>(url,
-          data: object.stream,
-          options: Options(
-            headers: <String, dynamic>{
-              ...safeHeaders,
-              ...<String, dynamic>{
-                'content-length': length,
-              }
-            },
-            contentType: object.mediaType.mimeType,
-          ), onSendProgress: (int count, int total) {
-        print(((count / total) * 100).toStringAsFixed(2));
-      });
+      await _http.put<void>(
+        url,
+        data: object.stream,
+        options: Options(
+          headers: <String, dynamic>{
+            // ...safeHeaders,
+            ...<String, dynamic>{
+              'content-length': length,
+              'content-type': object.mediaType.mimeType,
+            }
+          },
+          contentType: object.mediaType.mimeType,
+        ),
+        // onSendProgress: (int count, int total) {
+        //   print(((count/total)*100).toStringAsFixed(2));
+        // }
+      );
       return object;
     } catch (e) {
       rethrow;

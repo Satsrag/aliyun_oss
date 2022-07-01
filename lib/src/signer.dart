@@ -14,14 +14,22 @@ class SignedInfo {
   final String? securityToken;
 
   Map<String, String> toHeaders() => {
-        'Date': dateString,
+        'Datea': dateString,
         'Authorization': 'OSS $accessKeyId:$signature',
         if (securityToken != null) 'x-oss-security-token': securityToken!,
       };
+
+  String toParams() {
+    var params =
+        '?OSSAccessKeyId=$accessKeyId&Expires=$dateString&Signature=$signature';
+    if (securityToken != null) params += '&security-token=${Uri.encodeComponent(securityToken!)}';
+    return params;
+  }
 }
 
 class Signer {
   const Signer(this.credentials);
+
   final Credentials credentials;
 
   /// [dateString]  `Date` in [HttpDate] or `Expires` in [DateTime.secondsSinceEpoch]
@@ -31,13 +39,12 @@ class Signer {
     Map<String, String>? parameters,
     Map<String, String>? headers,
     String? contentMd5,
-    String? dateString,
   }) {
     final securityHeaders = {
       if (headers != null) ...headers,
-      if (credentials.securityToken != null) ...{
-        'x-oss-security-token': credentials.securityToken!,
-      }
+      // if (credentials.securityToken != null) ...{
+      //   'x-oss-security-token': credentials.securityToken!,
+      // }
     };
     final sortedHeaders = _sortByLowerKey(securityHeaders);
     final contentType = sortedHeaders
@@ -53,11 +60,14 @@ class Signer {
 
     final securityParameters = {
       if (parameters != null) ...parameters,
+      if (credentials.securityToken != null) ...{
+        'security-token': credentials.securityToken!
+      }
     };
     final canonicalizedResource =
         _buildCanonicalizedResource(resourcePath, securityParameters);
 
-    final date = dateString ?? _requestTime();
+    final date = _requestTime();
     final canonicalString = [
       httpMethod,
       contentMd5 ?? '',
@@ -66,6 +76,8 @@ class Signer {
       if (canonicalizedOSSHeaders.isNotEmpty) canonicalizedOSSHeaders,
       canonicalizedResource,
     ].join('\n');
+
+    print("sign string: $canonicalString");
 
     final signature = _computeHmacSha1(canonicalString);
     return SignedInfo(
@@ -99,10 +111,11 @@ class Signer {
   }
 
   String _requestTime() {
-    initializeDateFormatting('en', null);
-    final DateTime now = DateTime.now();
-    final String string =
-        DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_ISO').format(now.toUtc());
-    return '$string GMT';
+    // initializeDateFormatting('en', null);
+    // final DateTime now = DateTime.now();
+    // final String string =
+    //     DateFormat('EEE, dd MMM yyyy HH:mm:ss', 'en_ISO').format(now.toUtc());
+    // return '$string GMT';
+    return '${DateTime.now().millisecondsSinceEpoch ~/ 1000 + 120}';
   }
 }
