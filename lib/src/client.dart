@@ -46,13 +46,13 @@ class OSSClient {
     _signer = await verify();
     final params = _signer!.sign(
         httpMethod: 'PUT',
-        resourcePath: '/$bucket/${object.objectPath}',
+        resourcePath: '/$bucket/${getObjectPath(object.objectPath)}',
         headers: {
           'content-type': object.mediaType.mimeType,
         }).toParams();
     try {
       final String url =
-          'https://$bucket.$endpoint/${object.objectPath}$params';
+          '${getObjectUrlWithScheme(getObjectPath(object.objectPath))}$params';
       final length = await object.length;
 
       print('OssUploader -> $length url:$url object: $object');

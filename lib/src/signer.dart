@@ -14,7 +14,7 @@ class SignedInfo {
   final String? securityToken;
 
   Map<String, String> toHeaders() => {
-        'Datea': dateString,
+        'Date': dateString,
         'Authorization': 'OSS $accessKeyId:$signature',
         if (securityToken != null) 'x-oss-security-token': securityToken!,
       };
