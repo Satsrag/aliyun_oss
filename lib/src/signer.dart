@@ -21,7 +21,7 @@ class SignedInfo {
 
   String toParams() {
     var params =
-        '?OSSAccessKeyId=$accessKeyId&Expires=$dateString&Signature=$signature';
+        '?OSSAccessKeyId=$accessKeyId&Expires=$dateString&Signature=${Uri.encodeComponent(signature)}';
     if (securityToken != null) params += '&security-token=${Uri.encodeComponent(securityToken!)}';
     return params;
   }
